@@ -11,22 +11,33 @@ class Settings:
     def __init__(self):
         self.screen_width = 1200
         self.screen_height = 800
-        self.bg_color = (150, 150, 150)
+        self.bg_color = (50, 50, 50)
         self.ship_speed_factor = 10
 
-        self.laser_color = (136, 8, 8)
+        self.laser_color = (200, 8, 8)
         self.laser_speed_factor = 4
         self.laser_width = 5
         self.laser_height = 20
-        self.lasers_allowed = 5
+        self.lasers_allowed = 15
 
 
-class Alien:
-    def __init__(self): pass
+class Alien(sp):
+    def __init__(self, game):
+        super(Alien, self).__init__()
+        self.screen = game.screen
+        self.settings = game.settings
+        self.image = pg.image.load('images/alien.bmp')
+        self.rect = self.image.get_rect()
+
+        # integer coords
+        self.rect.x = self.rect.width
+        self.rect.y = self.rect.height
+        self.x = float(self.rect.x)
 
     def update(self): pass
 
-    def draw(self): pass
+    def draw(self):
+        self.screen.blit(self.image, self.rect)
 
 
 class Laser(sp):
@@ -51,8 +62,8 @@ class Laser(sp):
 
 
 class Ship:
-    def __init__(self, game, settings):
-        self.settings = settings
+    def __init__(self, game):
+        self.settings = game.settings
         self.game = game
         self.screen = game.screen
         self.image = pg.image.load('images/ship.bmp')
@@ -63,6 +74,7 @@ class Ship:
         self.rect.bottom = self.screen_rect.bottom
         self.v = Vector()
 
+
     def moving(self, vector):
         self.v = vector
 
@@ -72,17 +84,24 @@ class Ship:
     def clamp(self):
         settings = self.settings
         rect = self.rect
-        if rect.centerx - rect.width / 2 <= 0:
-            rect.centerx = rect.width / 2
+        hit = {'LEFT': rect.centerx - rect.width/2 <= 0,
+               'RIGHT': rect.centerx + rect.width / 2 >= settings.screen_width,
+               'BOTTOM': rect.centery + rect.height / 2 >= settings.screen_height,
+               'TOP': rect.centery - rect.height / 2 <= 0}
+        positions = {'LEFT': rect.width/2, 'RIGHT': settings.screen_width - rect.width / 2,
+                     'BOTTOM': settings.screen_height - rect.height / 2, 'TOP': rect.height / 2}
 
-        if rect.centerx + rect.width / 2 >= settings.screen_width:
-            rect.centerx = settings.screen_width - rect.width / 2
+        if hit['LEFT']:
+            rect.centerx = positions['LEFT']
 
-        if rect.centery + rect.height / 2 >= settings.screen_height:
-            rect.centery = settings.screen_height - rect.height / 2
+        if hit['RIGHT']:
+            rect.centerx = positions['RIGHT']
 
-        if rect.centery - rect.height / 2 <= 0:
-            rect.centery = rect.height / 2
+        if hit['BOTTOM']:
+            rect.centery = positions['BOTTOM']
+
+        if hit['TOP']:
+            rect.centery = positions['TOP']
 
     def update(self):
         rect = self.rect
@@ -108,8 +127,11 @@ class Game:
                                            self.settings.screen_height))
         self.bg_color = self.settings.bg_color
         pg.display.set_caption("Alien Invasion")
-        self.ship = Ship(game=self, settings=self.settings)
+        self.ship = Ship(game=self)
         self.lasers = Group()
+        self.aliens = Group()
+        gf.create_fleet(game=self)
+        # self.alien = Alien(game=self)
 
     def update(self):
         self.ship.update()

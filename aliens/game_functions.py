@@ -3,7 +3,7 @@ from math import ceil
 
 import pygame as pg
 from vector import Vector
-from game import Laser
+from game import Laser, Alien
 
 LEFT, RIGHT, UP, DOWN, STOP, FIRE = 'left', 'right', 'up', 'down', 'stop', 'fire'
 dirs = {LEFT: Vector(-1, 0), RIGHT: Vector(1, 0),
@@ -29,6 +29,8 @@ def check_keydown_events(e, game, speed):
         game.ship.inc_add(v)
     elif e.key in fire_key:
         fire_laser(game)
+    elif e.key == pg.K_ESCAPE:
+        sys.exit()
 
 
 def check_keyup_events(e, game, speed):
@@ -56,9 +58,35 @@ def manage_lasers(game):
             game.lasers.remove(laser)
 
 
+def get_num_aliens_x(game, alien_width):
+    available_space_x = game.settings.screen_width - 2 * alien_width
+    num_aliens_x = int(available_space_x / (2 * alien_width))
+    return num_aliens_x
+
+
+def create_alien(game, alien_width, i):
+    alien = Alien(game)
+    alien.x = alien_width + 2 * alien_width * i
+    alien.rect.x = alien.x
+    game.aliens.add(alien)
+
+
+def create_fleet(game):
+    alien = Alien(game)
+    alien_width = alien.rect.width
+    num_aliens_x = get_num_aliens_x(game, alien_width)
+    for i in range(num_aliens_x):
+        create_alien(game, alien_width, i)
+
+
 def update_screen(game):
     game.screen.fill(game.bg_color)
     game.ship.draw()
+
+    for alien in game.aliens.sprites():
+        alien.draw()
+
     for laser in game.lasers.sprites():
         laser.draw()
+
     pg.display.flip()
