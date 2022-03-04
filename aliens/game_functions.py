@@ -19,7 +19,7 @@ def check_keydown_events(e, game, speed):
         v = dirs[dir_keys[e.key]] * speed
         game.ship.inc_add(v)
     elif e.key in fire_key:
-        game.ship.fire_laser()
+        game.ship.hold_fire_on()
     elif e.key == pg.K_ESCAPE:
         sys.exit()
 
@@ -28,6 +28,8 @@ def check_keyup_events(e, game, speed):
     if e.key in dir_keys:
         v = dirs[dir_keys[e.key]] * speed
         game.ship.inc_add(-v)
+    elif e.key in fire_key:
+        game.ship.hold_fire_off()
 
 
 def larger_abs(num):
@@ -62,7 +64,7 @@ def check_events(game):
 
 
 def update_screen(game):
-    game.screen.fill(game.bg_color)
+    game.screen.blit(game.settings.bg_image, (0,0))
     game.ship.draw()
     game.lasers.draw()
     game.aliens.draw()

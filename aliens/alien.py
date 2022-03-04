@@ -3,6 +3,8 @@ from time import sleep
 import pygame as pg
 from pygame.sprite import Sprite as Sp, Group
 
+from cpsc386.aliens.timer import Timer
+
 
 class AlienFleet:
     def __init__(self, game):
@@ -15,18 +17,14 @@ class AlienFleet:
 
     def update(self):
         if len(self.group) == 0:
-            self.game.ship.center_ship()
-            self.respawn()
-        elif pg.sprite.spritecollideany(self.game.ship, self.group):
-            self.game.gameStats.lost_ship()
-
+            self.game.reset()
         self.check_fleet_edge()
         for alien in self.group.sprites():
             alien.update()
 
     def check_fleet_edge(self):
         for alien in self.group.sprites():
-            if self.handle_hit_bottom(alien):
+            if alien.handle_hit_bottom():
                 break
             if alien.check_edges():
                 self.change_fleet_dir()
@@ -83,24 +81,28 @@ class AlienFleet:
 
         return number_rows
 
-    def handle_hit_bottom(self, alien):
-        hit = alien.rect.bottom >= self.game.settings.screen_height
-        if hit:
-            self.game.gameStats.lost_ship()
-        return hit
-
     def move_down(self):
         for alien in self.group.sprites():
             alien.move_down()
 
 
 class Alien(Sp):
-    def __init__(self, game):
+    def __init__(self, game, alien_type="alienOne"):
         super(Alien, self).__init__()
         self.game = game
         self.screen = game.screen
         self.settings = game.settings
-        self.image = pg.image.load('images/alien.bmp')
+
+        self.normal_image_list = [pg.image.load(f'images/{alien_type}/{alien_type}{x}.png') for x in range(2)]
+        self.death_image_list = [pg.image.load(f'images/{alien_type}Death/{alien_type}Death{x}.png') for x in range(5)]
+        self.image_list = self.normal_image_list
+        self.alien_normal_timer = Timer(image_list=self.image_list, delay=self.settings.alien_animation_delay)
+        self.alien_death_timer = Timer(image_list=self.death_image_list, delay=self.settings.alien_animation_delay, is_loop=False)
+        self.alien_image_timer = self.alien_normal_timer
+        self.image = self.image_list[self.alien_image_timer.index]
+        self.last_animation_time = pg.time.get_ticks()
+        self.dying = False
+
         self.rect = self.image.get_rect()
 
         # integer coords
@@ -114,6 +116,13 @@ class Alien(Sp):
         direction = self.game.settings.alien_fleet_direction
         self.x += speed * direction
         self.rect.x = self.x
+        self.handle_animation()
+
+    def handle_animation(self):
+        self.image = self.image_list[self.alien_image_timer.index]
+        self.alien_image_timer.next_frame()
+        if self.dying and self.alien_image_timer.is_expired():
+            self.remove(self.game.aliens.group)
 
     def check_edges(self):
         return self.rect.left <= 0 or self.rect.right >= self.game.settings.screen_width
@@ -122,5 +131,17 @@ class Alien(Sp):
         self.y += self.game.settings.alien_fleet_drop_speed
         self.rect.y = self.y
 
+    def die(self):
+        self.image_list = self.death_image_list
+        self.alien_image_timer = self.alien_death_timer
+        self.dying = True
+
     def draw(self):
         self.screen.blit(self.image, self.rect)
+
+    def handle_hit_bottom(self):
+        hit = self.rect.bottom >= self.game.settings.screen_height
+        if hit:
+            self.game.gameStats.lost_ship()
+            self.game.reset()
+        return hit

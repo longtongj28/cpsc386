@@ -18,7 +18,6 @@ class Game:
         self.settings = Settings()
         self.screen = pg.display.set_mode((self.settings.screen_width,
                                            self.settings.screen_height))
-        self.bg_color = self.settings.bg_color
         pg.display.set_caption("Alien Invasion")
         self.ship = Ship(game=self)
         self.lasers = LasersGroup(game=self)
@@ -28,10 +27,11 @@ class Game:
         self.active = True
 
     def reset(self):
-        self.ship.center_ship()
+        self.ship.reset()
         self.lasers.reset()
         self.aliens.respawn()
-        pg.time.wait(1000)
+        self.gameStats.lost_ship()
+        # pg.time.wait(1000)
 
     def update(self):
         self.ship.update()
