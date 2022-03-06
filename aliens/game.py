@@ -10,7 +10,7 @@ from GameStats import GameStats
 from laser import LasersGroup
 from settings import Settings
 from ship import Ship
-
+from landing_page import LandingPage
 
 class Game:
     def __init__(self):
@@ -53,6 +53,8 @@ class Game:
 
 def main():
     g = Game()
+    lp = LandingPage(game=g)
+    lp.show()
     g.play()
 
 

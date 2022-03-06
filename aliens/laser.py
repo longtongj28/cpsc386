@@ -40,13 +40,14 @@ class Laser(Sp):
         self.screen = game.screen
         self.left_laser = left_laser
 
+        print("initialized laser")
         self.normal_image_list = [pg.image.load(f'images/lasers/laser{x}.png') for x in range(6)]
-        self.laser_timer = Timer(image_list=self.normal_image_list, delay=game.settings.laser_animation_delay)
-        self.destroy_image_list = [pg.image.load(f'images/lasers/laserExplode{x}.png') for x in range(2)]
-        self.laser_dying_timer = Timer(image_list=self.destroy_image_list, delay=100, is_loop=False)
-        self.image_list = self.normal_image_list
+        self.normal_laser_timer = Timer(image_list=self.normal_image_list, delay=game.settings.laser_animation_delay)
+        self.destroy_image_list = [pg.image.load(f'images/lasers/laserExplode{x}.png') for x in range(3)]
+        self.destroy_image_timer = Timer(image_list=self.destroy_image_list, delay=100, is_loop=False)
+        self.laser_timer = self.normal_laser_timer
 
-        self.image = self.image_list[self.laser_timer.index]
+        self.image = self.laser_timer.image()
         self.rect = self.image.get_rect()
         self.rect.top = game.ship.rect.top
         self.y = float(self.rect.y)
@@ -61,32 +62,31 @@ class Laser(Sp):
 
     def update(self):
         # update the decimal y val, then update the integer pos
+        if self.dying and self.laser_timer.is_expired():
+            self.remove(self.game.lasers.group)
         self.handle_animation()
         self.check_hit_alien()
         if not self.dying:
             self.handle_positioning()
-        if self.laser_timer.is_expired():
-            self.remove(self.game.lasers.group)
 
     def handle_positioning(self):
         self.y -= self.speed_factor
         self.rect.y = self.y
 
     def handle_animation(self):
-        self.image = self.image_list[self.laser_timer.index]
-        self.laser_timer.next_frame()
+        self.image = self.laser_timer.image()
 
     def draw(self):
         self.game.screen.blit(self.image, self.rect)
 
     def die(self):
         if not self.dying:
-            self.image_list = self.destroy_image_list
-            self.laser_timer = self.laser_dying_timer
+            self.laser_timer = Timer(image_list=self.destroy_image_list, delay=100, is_loop=False)
             self.dying = True
 
     def check_hit_alien(self):
         for alien in self.game.aliens.group:
             if pg.sprite.collide_mask(self, alien) and not self.dying:
                 self.die()
-                alien.die()
+                alien.lose_life()
+

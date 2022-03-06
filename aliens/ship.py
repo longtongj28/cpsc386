@@ -12,11 +12,13 @@ class Ship:
 
         self.normal_image_list = [pg.image.load(f'images/ship/ship{x}.png') for x in range(4)]
         self.death_image_list = [pg.image.load(f'images/ship_death/ship_death{x}.png') for x in range(15)]
-        self.image_list = self.normal_image_list
-        self.ship_normal_timer = Timer(image_list=self.image_list,
+        self.ship_normal_timer = Timer(image_list=self.normal_image_list,
                                        delay=self.settings.ship_image_animation_delay)
+        self.ship_death_timer = Timer(image_list=self.death_image_list,
+                                      delay=self.settings.ship_death_animation_delay,
+                                      is_loop=False)
         self.ship_image_timer = self.ship_normal_timer
-        self.image = self.image_list[self.ship_image_timer.index]
+        self.image = self.ship_image_timer.image()
         self.rect = self.image.get_rect()
         self.screen_rect = self.screen.get_rect()
         self.center = Vector(self.rect.centerx, self.rect.centery)
@@ -90,20 +92,17 @@ class Ship:
         rect.centery = center.y
 
     def die(self):
-        self.ship_image_timer = Timer(image_list=self.death_image_list,
-                                      delay=self.settings.ship_death_animation_delay,
-                                      is_loop=False)
-        self.image_list = self.death_image_list
+        self.ship_image_timer = self.ship_death_timer
         self.dying = True
         self.hold_fire_off()
+        self.ship_image_timer.reset()
 
     def handle_animation(self):
-        self.image = self.image_list[self.ship_image_timer.index]
-        self.ship_image_timer.next_frame()
+        self.image = self.ship_image_timer.image()
         if self.firing:
             delay = self.settings.ship_fire_delay
             now = pg.time.get_ticks()
-            if now - self.last_fire_time >= delay:
+            if now - self.last_fire_time > delay:
                 self.alternate_laser()
                 self.fire_laser()
                 self.last_fire_time = now
@@ -118,7 +117,6 @@ class Ship:
         self.rect.centery = self.settings.screen_height - self.rect.width / 2
 
         self.dying = False
-        self.image_list = self.normal_image_list
         self.ship_image_timer = self.ship_normal_timer
         self.ship_image_timer.reset()
         self.draw()

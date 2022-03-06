@@ -48,16 +48,34 @@ class AlienFleet:
 
     def create_all_aliens(self):
         for i in range(self.num_aliens_per_row):
-            for j in range(self.num_aliens_per_col):
+            for j in range(6):
                 self.create_alien_at(i, j)
 
     def create_alien_at(self, x, y):
         alien_width = self.alien.rect.width
         alien_height = self.alien.rect.height
-        alien = Alien(self.game)
 
-        alien.x = alien_width + 2 * alien_width * x
-        alien.y = alien_height + 2 * alien_height * y
+
+        alien_type = "alienOne"
+        pos_x = 0
+        pox_y = 0
+        if y % 3 == 0:
+            alien_type = "alienThree"
+            pos_x = alien_width + 2 * alien_width * x
+            pos_y = alien_height + 2 * alien_height * y
+        elif y % 3 == 1:
+            alien_type = "alienTwo"
+            pos_x = alien_width + 2 * alien_width * x
+            pos_y = alien_height + 2 * alien_height * y
+        elif y % 3 == 2:
+            alien_type = "alienOne"
+            pos_x = alien_width + 2 * alien_width * x
+            pos_y = alien_height + 2 * alien_height * y
+
+        alien = Alien(self.game, alien_type=alien_type)
+
+        alien.x = pos_x
+        alien.y = pos_y
         alien.rect.x = alien.x
         alien.rect.y = alien.y
 
@@ -103,6 +121,9 @@ class Alien(Sp):
         self.last_animation_time = pg.time.get_ticks()
         self.dying = False
 
+        alien_lives = {'alienOne': 2, 'alienTwo': 4, 'alienThree': 6, 'alienFour': 1}
+        self.lives = alien_lives[alien_type]
+
         self.rect = self.image.get_rect()
 
         # integer coords
@@ -118,9 +139,12 @@ class Alien(Sp):
         self.rect.x = self.x
         self.handle_animation()
 
+    def change_pos(self, x, y):
+        self.rect.x = x
+        self.rect.y = y
+
     def handle_animation(self):
-        self.image = self.image_list[self.alien_image_timer.index]
-        self.alien_image_timer.next_frame()
+        self.image = self.alien_image_timer.image()
         if self.dying and self.alien_image_timer.is_expired():
             self.remove(self.game.aliens.group)
 
@@ -135,6 +159,11 @@ class Alien(Sp):
         self.image_list = self.death_image_list
         self.alien_image_timer = self.alien_death_timer
         self.dying = True
+
+    def lose_life(self):
+        self.lives -= 1
+        if self.lives == 0:
+            self.die()
 
     def draw(self):
         self.screen.blit(self.image, self.rect)
