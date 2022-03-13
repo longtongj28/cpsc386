@@ -1,19 +1,23 @@
+import random
 from time import sleep
 
 import pygame as pg
 from pygame.sprite import Sprite as Sp, Group
 
-from cpsc386.aliens.timer import Timer
-
+from timer import Timer
+from laser import AlienLaser
 
 class AlienFleet:
     def __init__(self, game):
         self.game = game
-        self.alien = Alien(self.game)
         self.group = Group()
-        self.num_aliens_per_row = self.get_num_aliens_x()
-        self.num_aliens_per_col = self.get_num_aliens_y()
+        self.alien = Alien(game=self.game, alien_type="alienThree")
+        self.space_between_row_ships = 70
+        self.total_space_per_fleet = 0
         self.create_all_aliens()
+        self.last_ufo_time = pg.time.get_ticks()
+        self.last_time_fired = pg.time.get_ticks()
+        self.alien_lasers = Group()
 
     def update(self):
         if len(self.group) == 0:
@@ -21,22 +25,43 @@ class AlienFleet:
         self.check_fleet_edge()
         for alien in self.group.sprites():
             alien.update()
+        self.random_ufo()
+        self.random_laser()
+        for laser in self.alien_lasers.sprites():
+            laser.update()
+
+    def random_laser(self):
+        now = pg.time.get_ticks()
+        if now - self.last_time_fired > 5000:
+            for alien in self.group.sprites():
+                if random.randint(0, 10) == 2:
+                    alien.fire_laser()
+            self.last_time_fired = now
+
+    def random_ufo(self):
+        now = pg.time.get_ticks()
+        if now - self.last_ufo_time > 10000 and random.randint(0, 10) == 7:
+            self.create_alien_at(0, 30, AlienFour(game=self.game))
+            self.last_ufo_time = now
 
     def check_fleet_edge(self):
         for alien in self.group.sprites():
-            if alien.handle_hit_bottom():
-                break
-            if alien.check_edges():
-                self.change_fleet_dir()
-                break
+            if not alien.alien_type == 'alienFour':
+                if alien.handle_hit_bottom():
+                    break
+                if alien.check_edges():
+                    self.change_fleet_dir()
+                    break
 
     def change_fleet_dir(self):
         self.game.settings.alien_fleet_direction *= -1
         for alien in self.group.sprites():
-            alien.move_down()
+            if not alien.alien_type == 'alienFour':
+                alien.move_down()
 
     def respawn(self):
         self.game.lasers.group.empty()
+        self.alien_lasers.empty()
         self.group.empty()
         self.create_all_aliens()
         self.game.settings.alien_fleet_direction = 1
@@ -45,35 +70,35 @@ class AlienFleet:
     def draw(self):
         for alien in self.group.sprites():
             alien.draw()
+        for laser in self.alien_lasers.sprites():
+            laser.draw()
 
     def create_all_aliens(self):
-        for i in range(self.num_aliens_per_row):
-            for j in range(6):
-                self.create_alien_at(i, j)
+        alienOne = Alien(game=self.game, alien_type="alienOne")
+        alienTwo = Alien(game=self.game, alien_type="alienTwo")
+        alienThree = Alien(game=self.game, alien_type="alienThree")
+        space = self.space_between_row_ships
+        self.total_space_per_fleet = alienOne.rect.height + alienTwo.rect.height + alienThree.rect.height + 2 * space
+        self.create_row_aliens(self.total_space_per_fleet, alienOne)
+        self.create_row_aliens(self.total_space_per_fleet - space - alienOne.rect.height, alienTwo)
+        self.create_row_aliens(self.total_space_per_fleet - 2 * space - alienOne.rect.height - alienTwo.rect.height,
+                               alienThree)
 
-    def create_alien_at(self, x, y):
-        alien_width = self.alien.rect.width
-        alien_height = self.alien.rect.height
+    def create_row_aliens(self, y, alien):
+        for i in range(self.get_num_aliens_x(self.alien)):
+            self.create_alien_at(i, y, alien)
 
+    def create_alien_at(self, x, y, alien):
+        space_factor_x = 1.25
+        a = self.alien
+        alien_width = a.rect.width
+        pos_y = y
+        pos_x = alien_width + space_factor_x * alien_width * x
 
-        alien_type = "alienOne"
-        pos_x = 0
-        pox_y = 0
-        if y % 3 == 0:
-            alien_type = "alienThree"
-            pos_x = alien_width + 2 * alien_width * x
-            pos_y = alien_height + 2 * alien_height * y
-        elif y % 3 == 1:
-            alien_type = "alienTwo"
-            pos_x = alien_width + 2 * alien_width * x
-            pos_y = alien_height + 2 * alien_height * y
-        elif y % 3 == 2:
-            alien_type = "alienOne"
-            pos_x = alien_width + 2 * alien_width * x
-            pos_y = alien_height + 2 * alien_height * y
-
-        alien = Alien(self.game, alien_type=alien_type)
-
+        if alien.alien_type == 'alienFour':
+            alien = AlienFour(self.game)
+        else:
+            alien = Alien(self.game, alien_type=alien.alien_type)
         alien.x = pos_x
         alien.y = pos_y
         alien.rect.x = alien.x
@@ -81,14 +106,14 @@ class AlienFleet:
 
         self.group.add(alien)
 
-    def get_num_aliens_x(self):
-        alien_width = Alien(self.game).rect.width
+    def get_num_aliens_x(self, alien):
+        alien_width = alien.rect.width
         game = self.game
-        available_space_x = game.settings.screen_width - 2 * alien_width
-        num_aliens_x = int(available_space_x / (2 * alien_width))
+        available_space_x = game.settings.screen_width - 1.5 * alien_width
+        num_aliens_x = int(available_space_x / (1.25 * alien_width))
         return num_aliens_x
 
-    def get_num_aliens_y(self):
+    def get_num_aliens_y(self, alien):
         settings = self.game.settings
         alien_height = self.alien.rect.height
         ship_height = self.game.ship.rect.height
@@ -110,19 +135,23 @@ class Alien(Sp):
         self.game = game
         self.screen = game.screen
         self.settings = game.settings
+        self.alien_type = alien_type
 
         self.normal_image_list = [pg.image.load(f'images/{alien_type}/{alien_type}{x}.png') for x in range(2)]
         self.death_image_list = [pg.image.load(f'images/{alien_type}Death/{alien_type}Death{x}.png') for x in range(5)]
         self.image_list = self.normal_image_list
         self.alien_normal_timer = Timer(image_list=self.image_list, delay=self.settings.alien_animation_delay)
-        self.alien_death_timer = Timer(image_list=self.death_image_list, delay=self.settings.alien_animation_delay, is_loop=False)
+        self.alien_death_timer = Timer(image_list=self.death_image_list, delay=self.settings.alien_animation_delay,
+                                       is_loop=False)
         self.alien_image_timer = self.alien_normal_timer
         self.image = self.image_list[self.alien_image_timer.index]
         self.last_animation_time = pg.time.get_ticks()
         self.dying = False
 
         alien_lives = {'alienOne': 2, 'alienTwo': 4, 'alienThree': 6, 'alienFour': 1}
+        alien_scores = {'alienOne': 10, 'alienTwo': 20, 'alienThree': 40, 'alienFour': random.randint(30, 100)}
         self.lives = alien_lives[alien_type]
+        self.score = alien_scores[alien_type]
 
         self.rect = self.image.get_rect()
 
@@ -146,10 +175,10 @@ class Alien(Sp):
     def handle_animation(self):
         self.image = self.alien_image_timer.image()
         if self.dying and self.alien_image_timer.is_expired():
-            self.remove(self.game.aliens.group)
+            self.kill()
 
     def check_edges(self):
-        return self.rect.left <= 0 or self.rect.right >= self.game.settings.screen_width
+        return self.rect.left < 0 or self.rect.right > self.game.settings.screen_width
 
     def move_down(self):
         self.y += self.game.settings.alien_fleet_drop_speed
@@ -159,6 +188,7 @@ class Alien(Sp):
         self.image_list = self.death_image_list
         self.alien_image_timer = self.alien_death_timer
         self.dying = True
+        self.game.sound.play_alien_explosion()
 
     def lose_life(self):
         self.lives -= 1
@@ -174,3 +204,41 @@ class Alien(Sp):
             self.game.gameStats.lost_ship()
             self.game.reset()
         return hit
+
+    def fire_laser(self):
+        x = self.rect.centerx
+        y = self.rect.bottom
+        laser = AlienLaser(game=self.game, x=x, y=y)
+        self.game.aliens.alien_lasers.add(laser)
+        self.game.sound.play_fire_phaser()
+
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+
+
+class AlienFour(Alien):
+    def __init__(self, game, alien_type="alienFour"):
+        super().__init__(game=game, alien_type=alien_type)
+        self.x = float(self.rect.x)
+        self.y = float(self.rect.y)
+        self.font = pg.font.SysFont(None, 40)
+        self.game.sound.play_ufo()
+
+    def update(self):
+        speed = self.game.settings.alien_speed_factor * 2
+        self.x += speed
+        self.rect.x = self.x
+        self.handle_animation()
+        if self.pass_right():
+            self.kill()
+
+    def handle_animation(self):
+        self.image = self.alien_image_timer.image()
+        if self.dying:
+            self.image = self.font.render(f'+{self.score}', True, WHITE, BLACK)
+            if self.alien_image_timer.is_expired():
+                self.kill()
+
+    def pass_right(self):
+        return self.rect.left > self.game.settings.screen_width

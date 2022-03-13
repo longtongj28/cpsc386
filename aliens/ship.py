@@ -1,11 +1,13 @@
 from laser import Laser
 from vector import Vector
 import pygame as pg
+from pygame.sprite import Sprite as sp
 from timer import Timer
 
 
-class Ship:
+class Ship(sp):
     def __init__(self, game):
+        super().__init__()
         self.settings = game.settings
         self.game = game
         self.screen = game.screen
@@ -74,8 +76,12 @@ class Ship:
         self.left_laser = not self.left_laser
 
     def handle_collision(self):
-        if pg.sprite.spritecollideany(self, self.game.aliens.group) and not self.dying:
+        if (pg.sprite.spritecollideany(self, self.game.aliens.group) or\
+           pg.sprite.spritecollideany(self, self.game.aliens.alien_lasers)) and\
+           not self.dying:
             self.die()
+            self.game.gameStats.lost_ship()
+            self.game.sound.play_ship_explosion()
 
     def handle_positioning(self):
         if self.dying:
@@ -107,7 +113,9 @@ class Ship:
                 self.fire_laser()
                 self.last_fire_time = now
         if self.ship_image_timer.is_expired():
-            self.game.reset()
+            self.game.restart()
+            if self.game.gameStats.ships_left == 0:
+                self.game.active = False
 
     def draw(self):
         self.screen.blit(self.image, self.rect)
@@ -116,10 +124,11 @@ class Ship:
         self.rect.centerx = self.settings.screen_width / 2
         self.rect.centery = self.settings.screen_height - self.rect.width / 2
 
-        self.dying = False
         self.ship_image_timer = self.ship_normal_timer
         self.ship_image_timer.reset()
+        self.handle_animation()
         self.draw()
+        self.dying = False
 
     def hold_fire_on(self):
         self.firing = True
@@ -133,4 +142,5 @@ class Ship:
         game = self.game
         if len(game.lasers.group) < game.settings.lasers_allowed:
             new_laser = Laser(game, self.left_laser)
+            self.game.sound.play_fire_photon()
             game.lasers.group.add(new_laser)

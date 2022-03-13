@@ -68,4 +68,6 @@ def update_screen(game):
     game.ship.draw()
     game.lasers.draw()
     game.aliens.draw()
+    game.sb.draw()
+    game.barriers.draw()
     pg.display.flip()

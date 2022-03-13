@@ -30,3 +30,22 @@ class Timer:
     def image(self):
         self.next_frame()
         return self.image_list[self.index]
+
+
+class CommandTimer(Timer):
+    def __init__(self, image_list, start_index=0, delay=100, is_loop=True):
+        super().__init__(image_list, start_index, delay, is_loop)
+
+    def next_frame(self):
+        # if a one-pass timer that has finished
+        if not self.is_loop and self.index == len(self.image_list) - 1:
+            return
+        now = pg.time.get_ticks()
+
+        self.index += 1
+        if self.is_loop:
+            self.index %= self.frames
+        self.last_time_switched = now
+
+    def image(self):
+        return self.image_list[self.index]

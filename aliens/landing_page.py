@@ -1,9 +1,8 @@
 import pygame as pg
 import sys
 from alien import Alien
-from cpsc386.aliens.button import Button
-from settings import Settings
-
+from button import Button
+from sound import Sound
 YELLOW = (155, 135, 12)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -15,6 +14,7 @@ class LandingPage:
         self.game = game
         self.screen = game.screen
         self.landing_page_finished = False
+        self.highscore = self.game.gameStats.get_highscore()
 
         headingFont = pg.font.SysFont(None, 192)
         subheadingFont = pg.font.SysFont(None, 122)
@@ -22,7 +22,7 @@ class LandingPage:
 
         strings = [('SPACE', WHITE, headingFont), ('INVADERS', YELLOW, subheadingFont),
                    ('= 10 PTS', GREY, font), ('= 20 PTS', GREY, font),
-                   ('= 40 PTS', GREY, font), ('= ???', GREY, font), ('HIGH SCORES', GREY, font)]
+                   ('= 40 PTS', GREY, font), ('= ???', GREY, font), (f'HIGH SCORE = {self.highscore}', GREY, font)]
 
         self.texts = [self.get_text(msg=s[0], color=s[1], font=s[2]) for s in strings]
 
@@ -47,6 +47,8 @@ class LandingPage:
                            (centerx - 200, alien[2]-55),
                            (centerx - 160, alien[3]-10)]
         self.play_button = Button(self.screen, "PLAY GAME", ul=(centerx-110, 650))
+        self.sound = Sound()
+        self.sound.play_bg()
 
     def get_text(self, font, msg, color):
         return font.render(msg, True, color, BLACK)
@@ -57,23 +59,27 @@ class LandingPage:
         rect.centery = centery
         return rect
 
+    def detect_mouse_over(self):
+        mouse_x, mouse_y = pg.mouse.get_pos()
+        return self.play_button.rect.collidepoint(mouse_x, mouse_y)
+
     def check_events(self):
         for e in pg.event.get():
             if e.type == pg.QUIT:
                 sys.exit()
-            mouse_x, mouse_y = pg.mouse.get_pos()
             if e.type == pg.KEYUP and e.key == pg.K_p:  # pretend PLAY BUTTON pressed
                 self.landing_page_finished = True  # TODO change to actual PLAY button
                 # SEE ch. 14 of Crash Course for button
             elif e.type == pg.MOUSEBUTTONDOWN:
-                if self.play_button.rect.collidepoint(mouse_x, mouse_y):
+                if self.detect_mouse_over():
                     self.landing_page_finished = True
-            elif self.play_button.rect.collidepoint(mouse_x, mouse_y):
-                self.play_button.hovered = True
-                self.play_button.change_color()
-            else:
-                self.play_button.hovered = False
-                self.play_button.change_color()
+            elif e.type == pg.MOUSEMOTION:
+                if self.detect_mouse_over():
+                    self.play_button.hovered = True
+                    self.play_button.change_color()
+                else:
+                    self.play_button.hovered = False
+                    self.play_button.change_color()
 
     def show(self):
         while not self.landing_page_finished:
